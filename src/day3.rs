@@ -41,26 +41,52 @@ fn lines_stats(line_lenght: usize, lines: &Vec<String>) -> Vec<usize> {
 }
 
 #[aoc(day3, part2)]
-pub fn part2(input: &str) -> u32 {
-  let fake_input = "00100\n11110\n10110\n10111\n10101\n01111\n00111\n11100\n10000\n11001\n00010\n01010";
-  let lines = from_input(fake_input);
+pub fn part2(input: &str) -> isize {
+  // let fake_input = "00100\n11110\n10110\n10111\n10101\n01111\n00111\n11100\n10000\n11001\n00010\n01010";
+  let lines = from_input(input);
   let line_lenght = lines[0].chars().collect::<String>().len();
-  let lines_count = lines.len();
-  let result_bits = lines_stats(line_lenght, &lines);
+  // let lines_count = lines.len();
+  // let result_bits = lines_stats(line_lenght, &lines);
   let oxygen = calculate_oxygen(&lines, line_lenght);
-  let co = calculate_co()
-  0
+
+  let co_filter = |result_lines: Vec<String>, half: usize, symbol_count: usize, idx: usize| -> Vec<String> {
+    result_lines.into_iter().filter(|line| {
+      let split: Vec<_> = line.chars().collect();
+      (symbol_count >= half && split[idx] == '0') || (symbol_count < half && split[idx] == '1')
+    }).collect()
+  };
+
+  let co = calculate_gases(&lines, line_lenght, &co_filter);
+  co * oxygen
 }
 
-fn calculate_co(arg: Type) -> RetType {
-  unimplemented!();
-}
-
-fn calculate_oxygen(lines: &Vec<String>, line_lenght: usize) -> u32 {
+fn calculate_gases<F>(lines: &Vec<String>, line_lenght: usize, func: F) -> isize
+  where F: Fn(Vec<String>, usize, usize, usize) -> Vec<String>
+{
   let mut result_lines = lines.clone();
   for idx in 0..line_lenght {
     let result_bits = lines_stats(line_lenght, &result_lines);
-    println!("result bits: {:?}", result_bits);
+
+    let half = if result_lines.len() % 2 == 1 {
+      (result_lines.len() + 1) / 2
+    } else {
+      result_lines.len() / 2
+    };
+
+    result_lines = func(result_lines, half, result_bits[idx], idx);
+
+    if result_lines.len() == 1 {
+      break;
+    }
+  }
+  let gas = isize::from_str_radix(&result_lines[0], 2).unwrap();
+  gas
+}
+
+fn calculate_oxygen(lines: &Vec<String>, line_lenght: usize) -> isize {
+  let mut result_lines = lines.clone();
+  for idx in 0..line_lenght {
+    let result_bits = lines_stats(line_lenght, &result_lines);
 
     let half = if result_lines.len() % 2 == 1 {
       (result_lines.len() + 1) / 2
@@ -72,15 +98,12 @@ fn calculate_oxygen(lines: &Vec<String>, line_lenght: usize) -> u32 {
       let split: Vec<_> = line.chars().collect();
       (result_bits[idx] >= half && split[idx] == '1') || (result_bits[idx] < half && split[idx] == '0')
     }).collect();
-    println!("{:?}", result_lines);
     if result_lines.len() == 1 {
       break;
     }
   }
-  println!("Result lines {:?}", result_lines);
   let ox = isize::from_str_radix(&result_lines[0], 2).unwrap();
-  println!("Oxygen: {:?}, {:08b}", ox, ox);
-  0
+  ox
 }
 
 fn calculate_gamma(result_bits: Vec<usize>, lines_count: usize) -> u32 {
