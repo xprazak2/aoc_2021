@@ -86,9 +86,8 @@ impl Table {
     true
   }
 
-  pub fn unmarked_score(self) -> usize {
+  pub fn unmarked_score(&self) -> usize {
     let mut score = 0;
-    // if self.won {
       for row in &self.table {
         for point in row {
           if !point.marked {
@@ -96,7 +95,6 @@ impl Table {
           }
         }
       }
-    // }
     score
   }
 }
@@ -135,11 +133,12 @@ struct Bingo {
   pub inputs: Vec<usize>,
   pub turn: usize,
   pub winner_indexes: Vec<usize>,
+  pub last_winner_idx: Option<usize>
 }
 
 impl Bingo {
   pub fn new() -> Self {
-    Self{ tables: vec![], inputs: vec![], turn: 0, winner_indexes: vec![] }
+    Self{ tables: vec![], inputs: vec![], turn: 0, winner_indexes: vec![], last_winner_idx: None }
   }
 
   pub fn winners(&self) -> Vec<Table> {
@@ -151,6 +150,10 @@ impl Bingo {
     tables
   }
 
+  pub fn finished(&self) -> bool {
+    self.turn >= self.inputs.len()
+  }
+
   pub fn last_drawn(&self) -> usize {
     self.inputs[self.turn - 1]
   }
@@ -159,15 +162,64 @@ impl Bingo {
     self.winner_indexes.len() > 0
   }
 
+  pub fn all_winners(&self) -> bool {
+    self.winner_indexes.len() == self.tables.len()
+  }
+
+  pub fn one_remaining(&self) -> bool {
+    self.tables.len() == self.winner_indexes.len() + 1
+  }
+
+  pub fn remember_last(&mut self) {
+    let mut sorted = self.winner_indexes.to_vec();
+    sorted.sort();
+    for (idx, item) in sorted.iter().enumerate() {
+      if idx != *item {
+        self.last_winner_idx = Some(idx);
+        return;
+      }
+    }
+  }
+
   pub fn next_turn(&mut self) {
+    if self.finished() {
+      return;
+    }
     let current_number = self.inputs[self.turn];
     for (idx, table) in self.tables.iter_mut().enumerate() {
       table.mark(current_number);
       if Table::check_victory(&table, current_number) {
-        self.winner_indexes.push(idx);
+        if !self.winner_indexes.contains(&idx) {
+          self.winner_indexes.push(idx);
+        }
       }
     }
+    if self.one_remaining() {
+      self.remember_last();
+    }
     self.turn += 1;
+  }
+
+  pub fn last_score(&self) -> usize {
+    let val = match self.last_winner_idx {
+      Some(val) => self.tables[val].unmarked_score(),
+      None => self.find_last_score(),
+    };
+    val * self.last_drawn()
+  }
+
+  fn find_last_score(&self) -> usize {
+    let mut all = vec![0; self.tables.len()];
+    all = all.into_iter().enumerate().map(|(idx, _num)| idx).collect();
+    let diff: Vec<_> = all.into_iter().filter(|item| !self.winner_indexes.contains(item)).collect();
+    diff.into_iter().fold(0, |memo, idx| {
+      let score = self.tables[idx].unmarked_score();
+      if score > memo {
+        score
+      } else {
+        memo
+      }
+    })
   }
 
   pub fn winning_score(&self) -> usize {
@@ -211,8 +263,7 @@ fn parse_tables(table_size: usize, mut lines: std::str::Lines) -> Bingo {
   game
 }
 
-#[aoc(day4, part1)]
-pub fn part1(input: &str) -> usize {
+fn initialize(input: &str) -> Bingo {
   let mut lines = input.lines();
   let mut input_nums = vec![];
   if let Some(nums) = lines.next() {
@@ -221,13 +272,33 @@ pub fn part1(input: &str) -> usize {
   lines.next();
   let mut game = parse_tables(5, lines);
   game.inputs = input_nums;
+  game
+}
+
+#[aoc(day4, part1)]
+pub fn part1(input: &str) -> usize {
+  let mut game = initialize(input);
   loop {
     game.next_turn();
 
-    if game.any_winners() {
+    if game.any_winners() || game.finished() {
       break;
     }
   }
 
   game.winning_score()
+}
+
+#[aoc(day4, part2)]
+pub fn part2(input: &str) -> usize {
+  let mut game = initialize(input);
+  loop {
+    game.next_turn();
+
+    if game.all_winners() || game.finished() {
+      break;
+    }
+  }
+
+  game.last_score()
 }
