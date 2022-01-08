@@ -36,6 +36,38 @@ impl Line {
     vec![]
   }
 
+  fn to_coords_exhaustive(&self) -> Vec<Coord> {
+    if self.horizontal() {
+      return self.to_coords_horizontal();
+    }
+
+    if self.vertical() {
+      return self.to_coords_vertical();
+    }
+
+    if self.start.x > self.end.x {
+      return self.walk_diag(&self.end, &self.start);
+    } else {
+      return self.walk_diag(&self.start, &self.end);
+    }
+  }
+
+  fn walk_diag(&self, start: &Coord, end: &Coord) -> Vec<Coord> {
+    if start.y < end.y {
+      return self.walk_down(start, end);
+    } else {
+      return self.walk_up(start, end);
+    }
+  }
+
+  fn walk_down(&self, start: &Coord, end: &Coord) -> Vec<Coord> {
+    (start.x..=end.x).zip(start.y..=end.y).map(|(x, y)| Coord{x, y} ).collect()
+  }
+
+  fn walk_up(&self, start: &Coord, end: &Coord) -> Vec<Coord> {
+    (start.x..=end.x).zip((end.y..=start.y).rev()).map(|(x, y)| Coord{x, y} ).collect()
+  }
+
   fn to_coords_horizontal(&self) -> Vec<Coord> {
     if self.start.x > self.end.x {
       self.walk_x(self.end.x, self.start.x, self.start.y)
@@ -75,8 +107,28 @@ fn parse_coord(coord_str: &str) -> Coord {
   Coord{x: ary[0], y: ary[1]}
 }
 
-#[aoc(day5, part1)]
+#[aoc(day5, part2)]
 pub fn part2(input: &str) -> usize {
+  let lines = from_input(input);
+
+  let mut map = HashMap::new();
+
+  for line in lines {
+    let coords = line.to_coords_exhaustive();
+    for coord in coords {
+      map.entry(coord).and_modify(|item| { *item += 1 }).or_insert(1);
+    }
+  }
+
+  let res = map.values().fold(0, |memo, item| {
+    if item > &1 { memo + 1 } else { memo }
+  });
+
+  res
+}
+
+#[aoc(day5, part1)]
+pub fn part1(input: &str) -> usize {
   let lines = from_input(input);
 
   let mut map = HashMap::new();
